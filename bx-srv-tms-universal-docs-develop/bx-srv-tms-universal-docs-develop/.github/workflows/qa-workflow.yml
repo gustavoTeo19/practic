@@ -1,0 +1,76 @@
+name: Blue Express srv-tms-universal providers QA Flow
+on:
+  push:
+    branches:
+      - qa
+    #  - feature/*
+  pull_request:
+    branches: [qa]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [12.x]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Run yarn install and test
+        run: |
+          yarn install
+          yarn lint
+        env:
+          CI: true
+      - name: Set repo name
+        shell: bash
+        run: |
+          echo "REPO_NAME=bx-srv-tms-universal-providers" >> $GITHUB_ENV
+      - name: Extract branch name
+        shell: bash
+        run: |
+          echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_ENV
+      - name: Compute Docker Image Tag
+        if: ${{ github.ref == 'refs/heads/qa' }}
+        run: |
+          echo "IMAGE_TAG=$(echo $BRANCH_NAME-${GITHUB_SHA})" >> $GITHUB_ENV
+      - name: Run Docker build
+        if: ${{ github.ref == 'refs/heads/qa' }}
+        run: |
+          docker build . --file Dockerfile --tag ${REPO_NAME}:$IMAGE_TAG
+      - name: Run push to ECR
+        id: ecr
+        if: ${{ github.ref == 'refs/heads/qa' }}
+        uses: jwalton/gh-ecr-push@v1
+        with:
+          access-key-id: ${{ secrets.AWS_QA_BACK_ACCESS_KEY_ID }}
+          secret-access-key: ${{ secrets.AWS_QA_BACK_SECRET_ACCESS_KEY }}
+          region: ${{ secrets.AWS_QA_EKS_REGION }}
+          local-image: ${REPO_NAME}:$IMAGE_TAG
+          image: ${REPO_NAME}:$IMAGE_TAG
+      - name: AWS Credentials
+        id: aws-credentials
+        if: ${{ github.ref == 'refs/heads/qa' }}
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_QA_BACK_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_QA_BACK_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_QA_EKS_REGION }}
+      - name: Checkout Helm Chart Repo
+        id: checkout
+        if: ${{ github.ref == 'refs/heads/qa' }}
+        uses: actions/checkout@v2
+        with:
+          repository: Blue-Express/bx-archetypes-and-guidelines
+          path: bx-archetypes-and-guidelines
+          token: ${{ secrets.REPO_HELM_ACCESS }}
+      - name: Deploy
+        id: deploy
+        if: ${{ github.ref == 'refs/heads/qa' }}
+        uses: Blue-Express/helm-eks-action@main
+        env:
+          KUBE_CONFIG_DATA: ${{ secrets.AWS_QA_KUBECONFIG }}
+        with:
+          command: helm upgrade ms-srv-tms-universal-providers ./bx-archetypes-and-guidelines/archetypes/back/helm-bx-srv-tms-universal-providers/helm-srv-tms-universal-providers --install --wait --atomic --namespace=default --set=nodejs.containerImageRegistryVersion=$IMAGE_TAG -f ./bx-archetypes-and-guidelines/archetypes/back/helm-bx-srv-tms-universal-providers/helm-srv-tms-universal-providers/values-${BRANCH_NAME}.yaml

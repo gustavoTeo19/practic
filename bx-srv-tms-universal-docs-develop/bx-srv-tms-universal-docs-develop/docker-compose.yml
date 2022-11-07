@@ -1,0 +1,17 @@
+version: '3.3'
+services:
+  bx-srv-tms-universal-providers:
+    container_name: bx-srv-tms-universal-providers
+    restart: always
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/usr/src/app
+    ports:
+      - 3055:3000
+    networks:
+      - bx-srv-tms-universal-providers-default
+networks:
+  bx-srv-tms-universal-providers-default:
+    name: bx-srv-tms-universal-providers

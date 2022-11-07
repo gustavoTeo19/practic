@@ -1,0 +1,22 @@
+{
+  "name": "bx-srv-tms-universal-providers",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/Blue-Express/bx-srv-tms-universal-providers.git",
+  "author": "Gustavo Practic <empresa17-dev01@practic.tec.br>",
+  "license": "MIT",
+  "scripts": {
+    "start": "nodemon src/index.js",
+    "develop": "node src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^10.0.0",
+    "express": "^4.17.2",
+    "pg": "^8.7.1",
+    "sequelize": "^6.12.5"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.15"
+  }
+}
